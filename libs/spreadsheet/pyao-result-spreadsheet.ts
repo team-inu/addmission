@@ -1,0 +1,21 @@
+export type PyaoResultSpreadsheetRow = {
+  รหัสนักศึกษา: string;
+  "ชื่อ-สกุล": string;
+  ประเภทการเข้า: string;
+  โรงเรียน: string;
+  จังหวัด: string;
+  GPAX: string;
+  "GPA Math": string;
+  "GPA Science": string;
+  "GPA English": string;
+  "GPAX 1": string;
+  "GPAX 2": string;
+  "GPAX 3": string;
+  "GPAX 4": string;
+  "GPAX 5": string;
+  "GPAX 6": string;
+  "GPAX 7": string;
+  "GPAX 8": string;
+  จำนวนหน่วยกิตรวม: string;
+  หมายเหตุ: string;
+};
