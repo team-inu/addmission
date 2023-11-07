@@ -2,6 +2,7 @@ export type PyaoResultSpreadsheetRow = {
   รหัสนักศึกษา: string;
   "ชื่อ-สกุล": string;
   ประเภทการเข้า: string;
+  สาขาวิชาที่สมัคร: string;
   โรงเรียน: string;
   จังหวัด: string;
   GPAX: string;

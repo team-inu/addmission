@@ -14,5 +14,6 @@ export type EligibleSpreadsheetRow = {
   "ชื่อ - สกุล": string;
   ประเภทการเข้า: string;
   หมายเหตุ: string;
+  
   [key: `${1 | 2}/${number}`]: string;
 };

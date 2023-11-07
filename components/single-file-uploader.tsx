@@ -6,7 +6,8 @@ import Dropzone, { DropEvent, FileRejection } from "react-dropzone";
 import * as xlsx from "xlsx";
 import {
   ApplicantSpreadsheetRow,
-  applicantSpreadsheetHeader,
+  FirstDataHeaderRow,
+  applicantSpreadsheetHeaderTwo,
 } from "@/libs/spreadsheet/applicant-spreadsheet";
 import { EligibleSpreadsheetRow } from "@/libs/spreadsheet/eligible-spreadsheet";
 import { PyaoResultSpreadsheetRow } from "@/libs/spreadsheet/pyao-result-spreadsheet";
@@ -30,22 +31,74 @@ const MultipleFileUploader = () => {
       const workBook = xlsx.read(buffer, { type: "buffer" });
 
       const sheet1 = workBook.Sheets[workBook.SheetNames[0]];
-      const data = xlsx.utils.sheet_to_json(sheet1, {
-        range: 6,
-        header: applicantSpreadsheetHeader,
-      }) as ApplicantSpreadsheetRow[];
 
-      if (data.length === 0) {
-        return;
-      }
+      const dataWithHeaders = xlsx.utils.sheet_to_json(sheet1, {
+        range: 4,
+        header: 1,
+      })
 
-      setApplicants((prev) => [...prev, ...data]);
+      const headerFirstRow = dataWithHeaders[0] as string[]
+      const headerSecondRow = dataWithHeaders[1] as string[]
+
+      console.log(headerFirstRow,"headerFirstRow")
+      console.log(headerSecondRow,"headerSecondRow")
+
+      const indexByHeaderFirstRow = new Map<string, number>();
+      const indexByHeaderSecondRow = new Map<string, number>();
+
+      console.log(indexByHeaderFirstRow,"indexByHeaderFirstRow")
+      console.log(indexByHeaderSecondRow,"indexByHeaderSecondRow")
+
+      headerFirstRow.forEach((header, index) => indexByHeaderFirstRow.set(header, index))
+      headerSecondRow.forEach((header, index) => indexByHeaderSecondRow.set(header, index))
+
+      const rawData = dataWithHeaders.slice(2) as string[]
+
+
+      const final: ApplicantSpreadsheetRow[] = rawData.map((row) => {
+        const test = FirstDataHeaderRow.reduce((previousResult, header) => {
+          return ({
+            ...previousResult, [header]: indexByHeaderFirstRow.get(header) === undefined ? "" : row[indexByHeaderFirstRow.get(header)!],
+          })
+        }, {})
+
+        let secondRow = {}
+        
+        const indexScore = indexByHeaderFirstRow.get("รายการคะแนนกลุ่มสาระวิชา")
+        if (indexScore === undefined) {
+          secondRow = {
+            "รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์": "",
+            "รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์": "",
+            "รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ": "",
+          }
+        } else {
+          secondRow = {
+            "รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์": row[indexScore],
+            "รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์": row[indexScore + 1],
+            "รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ": row[indexScore + 2],
+          }
+        }
+        
+        return  {
+          ...test,
+          ...secondRow,
+        } as ApplicantSpreadsheetRow
+  
+      })
+      console.log("this is applicants",);
+
+
+  
+
+      setApplicants((prev) => [...prev, ...final]);
     };
 
     setApplicantFiles(acceptedFiles);
 
     const promises = acceptedFiles.map((file) => {
-      if (file.type !== "application/vnd.ms-excel") {
+      console.log(file.type)
+      const fileTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',"application/vnd.ms-excel"]
+      if (!fileTypes.includes(file.type)) {
         return Promise.resolve();
       }
       return readFile(file);
@@ -92,13 +145,8 @@ const MultipleFileUploader = () => {
     type ExtendedEligible = EligibleSpreadsheetRow & { year: string }
 
     type ExtendedEligibleWithPartialyApplicant = ExtendedEligible & Partial<ApplicantSpreadsheetRow>
-    type ExtendedEligibleWithApplicant = ExtendedEligible & ApplicantSpreadsheetRow
 
-    const isExtendedEligibleWithApplicant = (o: ExtendedEligibleWithPartialyApplicant): o is ExtendedEligibleWithApplicant => {
-      return o.hasOwnProperty("ประเภทการเข้า") && o.hasOwnProperty("GPAX")
-    }
-
-    const extendedEligibleWithApplicantToPyaoResult = (e: ExtendedEligibleWithApplicant): PyaoResultSpreadsheetRow => {
+    const extendedEligibleWithApplicantToPyaoResult = (e: ExtendedEligibleWithPartialyApplicant): PyaoResultSpreadsheetRow => {
       return (
         {
           รหัสนักศึกษา: e["รหัสนักศึกษา"],
@@ -119,6 +167,7 @@ const MultipleFileUploader = () => {
           "GPAX 7": e[`1/${Number(e["year"]) + 3}`] || "",
           "GPAX 8": e[`2/${Number(e["year"]) + 3}`] || "",
           จำนวนหน่วยกิตรวม: "0",
+          สาขาวิชาที่สมัคร: e["สาขาวิชาที่สมัคร"] ?? "",
           หมายเหตุ: e["หมายเหตุ"],
         }
       )
@@ -131,13 +180,29 @@ const MultipleFileUploader = () => {
     
     for (const applicant of applicants) {
       let name
-      if (applicant["สัญชาติ"] == "ไทย") {
-          name = applicant["คำนำหน้านาม(ไทย)"] + applicant["ชื่อ(ไทย)"] + " " + applicant["นามสกุล(ไทย)"];
+      // if (applicant["สัญชาติ"] == "ไทย") {
+      //   name = applicant["คำนำหน้านาม(ไทย)"] + applicant["ชื่อ(ไทย)"] + " " + applicant["นามสกุล(ไทย)"];
+      // } else {
+      //   name = applicant["คำนำหน้านาม(อังกฤษ)"] + applicant["ชื่อ(อังกฤษ)"] + " " + applicant["นามสกุล(อังกฤษ)"];
+      // }
+
+      const thaiFirstName = applicant["ชื่อ(ไทย)"]
+      const engFirstName = applicant["ชื่อ(อังกฤษ)"]
+      
+      if (thaiFirstName !== undefined && thaiFirstName !== "") {
+        name = applicant["คำนำหน้านาม(ไทย)"] + applicant["ชื่อ(ไทย)"] + " " + applicant["นามสกุล(ไทย)"];
+      } else if (engFirstName !== undefined && engFirstName !== "") {
+        name = applicant["คำนำหน้านาม(อังกฤษ)"] + applicant["ชื่อ(อังกฤษ)"] + " " + applicant["นามสกุล(อังกฤษ)"];
       } else {
-          name = applicant["คำนำหน้านาม(อังกฤษ)"] + applicant["ชื่อ(อังกฤษ)"] + " " + applicant["นามสกุล(อังกฤษ)"];
+        console.log("no name")
+        name = "no name"
       }
 
-      applicantByName.set(name, applicant);
+      applicantByName.set(name, applicant)
+
+      // if(applicant["โอนไปยังระบบทะเบียน"] == "ใช่" && applicant["สถานะการชำระเงินค่ายืนยันสิทธิ์"] == "ชำระเงินแล้ว") {
+      //   applicantByName.set(name, applicant)
+      // }
     }
 
     for (const eligible of eligibles) {
@@ -163,13 +228,17 @@ const MultipleFileUploader = () => {
 
     const extendedEligibleWithPartialyApplicants = Array.from(extendedEligibleWithPartialyApplicantByName.values());
 
-    const filteredArr = extendedEligibleWithPartialyApplicants.filter(isExtendedEligibleWithApplicant);
-
+    const filteredArr = extendedEligibleWithPartialyApplicants.filter((o) => o.hasOwnProperty("ประเภทการเข้า"));
     const regStudents = filteredArr.filter((student) => {
-      return student["สาขาวิชาที่สมัคร"] === "วิศวกรรมคอมพิวเตอร์ - วศ.บ. 4 ปี"
+      // return student["สาขาวิชาที่สมัคร"] === "วิศวกรรมคอมพิวเตอร์ - วศ.บ. 4 ปี"
+      return student["รหัสนักศึกษา"].substring(7, 9) === "10"
     })
+    console.log(extendedEligibleWithPartialyApplicants)
+    console.log(filteredArr)
+    console.log(regStudents)
     const interStudents = filteredArr.filter((student) => {
-      return student["สาขาวิชาที่สมัคร"] === "วิศวกรรมคอมพิวเตอร์ (หลักสูตรนานาชาติ) - วศ.บ. 4 ปี"
+      // return student["สาขาวิชาที่สมัคร"] === "วิศวกรรมคอมพิวเตอร์ (หลักสูตรนานาชาติ) - วศ.บ. 4 ปี"
+      return student["รหัสนักศึกษา"].substring(7, 9) === "34"
     })
     
     const reg = regStudents.map(extendedEligibleWithApplicantToPyaoResult);
