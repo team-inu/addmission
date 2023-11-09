@@ -12,6 +12,16 @@ import {
 import { EligibleSpreadsheetRow } from "@/libs/spreadsheet/eligible-spreadsheet";
 import { PyaoResultSpreadsheetRow } from "@/libs/spreadsheet/pyao-result-spreadsheet";
 
+const parseNumber = (value: any): number | null => {
+  const parsed = parseFloat(value);
+
+  if (isNaN(parsed)) {
+    return null;
+  } else {
+    return parsed;
+  }
+};
+
 const MultipleFileUploader = () => {
   const [applicantFiles, setApplicantFiles] = useState<File[]>([]);
   const [eligibleFiles, setEligibleFiles] = useState<File[]>([]);
@@ -35,60 +45,59 @@ const MultipleFileUploader = () => {
       const dataWithHeaders = xlsx.utils.sheet_to_json(sheet1, {
         range: 4,
         header: 1,
-      })
+      });
 
-      const headerFirstRow = dataWithHeaders[0] as string[]
-      const headerSecondRow = dataWithHeaders[1] as string[]
-
-      console.log(headerFirstRow,"headerFirstRow")
-      console.log(headerSecondRow,"headerSecondRow")
+      const headerFirstRow = dataWithHeaders[0] as string[];
+      const headerSecondRow = dataWithHeaders[1] as string[];
 
       const indexByHeaderFirstRow = new Map<string, number>();
       const indexByHeaderSecondRow = new Map<string, number>();
 
-      console.log(indexByHeaderFirstRow,"indexByHeaderFirstRow")
-      console.log(indexByHeaderSecondRow,"indexByHeaderSecondRow")
+      headerFirstRow.forEach((header, index) =>
+        indexByHeaderFirstRow.set(header, index)
+      );
+      headerSecondRow.forEach((header, index) =>
+        indexByHeaderSecondRow.set(header, index)
+      );
 
-      headerFirstRow.forEach((header, index) => indexByHeaderFirstRow.set(header, index))
-      headerSecondRow.forEach((header, index) => indexByHeaderSecondRow.set(header, index))
-
-      const rawData = dataWithHeaders.slice(2) as string[]
-
+      const rawData = dataWithHeaders.slice(2) as string[];
 
       const final: ApplicantSpreadsheetRow[] = rawData.map((row) => {
         const test = FirstDataHeaderRow.reduce((previousResult, header) => {
-          return ({
-            ...previousResult, [header]: indexByHeaderFirstRow.get(header) === undefined ? "" : row[indexByHeaderFirstRow.get(header)!],
-          })
-        }, {})
+          return {
+            ...previousResult,
+            [header]:
+              indexByHeaderFirstRow.get(header) === undefined
+                ? ""
+                : row[indexByHeaderFirstRow.get(header)!],
+          };
+        }, {});
 
-        let secondRow = {}
-        
-        const indexScore = indexByHeaderFirstRow.get("รายการคะแนนกลุ่มสาระวิชา")
+        let secondRow = {};
+
+        const indexScore = indexByHeaderFirstRow.get(
+          "รายการคะแนนกลุ่มสาระวิชา"
+        );
         if (indexScore === undefined) {
           secondRow = {
-            "รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์": "",
-            "รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์": "",
-            "รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ": "",
-          }
+            รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์: "",
+            รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์: "",
+            รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ: "",
+          };
         } else {
           secondRow = {
-            "รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์": row[indexScore],
-            "รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์": row[indexScore + 1],
-            "รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ": row[indexScore + 2],
-          }
+            รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์: row[indexScore],
+            รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์: row[indexScore + 1],
+            รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ: row[indexScore + 2],
+          };
         }
-        
-        return  {
+
+        return {
           ...test,
           ...secondRow,
-        } as ApplicantSpreadsheetRow
-  
-      })
-      console.log("this is applicants",);
-
-
-  
+        } as ApplicantSpreadsheetRow;
+      });
+      console.log("this is applicants");
 
       setApplicants((prev) => [...prev, ...final]);
     };
@@ -96,8 +105,11 @@ const MultipleFileUploader = () => {
     setApplicantFiles(acceptedFiles);
 
     const promises = acceptedFiles.map((file) => {
-      console.log(file.type)
-      const fileTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',"application/vnd.ms-excel"]
+      console.log(file.type);
+      const fileTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+      ];
       if (!fileTypes.includes(file.type)) {
         return Promise.resolve();
       }
@@ -142,63 +154,77 @@ const MultipleFileUploader = () => {
   };
 
   const exportFile = () => {
-    type ExtendedEligible = EligibleSpreadsheetRow & { year: string }
+    type ExtendedEligible = EligibleSpreadsheetRow & { year: string };
 
-    type ExtendedEligibleWithPartialyApplicant = ExtendedEligible & Partial<ApplicantSpreadsheetRow>
+    type ExtendedEligibleWithPartialyApplicant = ExtendedEligible &
+      Partial<ApplicantSpreadsheetRow>;
 
-    const extendedEligibleWithApplicantToPyaoResult = (e: ExtendedEligibleWithPartialyApplicant): PyaoResultSpreadsheetRow => {
-      return (
-        {
-          รหัสนักศึกษา: e["รหัสนักศึกษา"],
-          "ชื่อ-สกุล": e["ชื่อ - สกุล"],
-          ประเภทการเข้า: e["ประเภทการเข้า"],
-          โรงเรียน: e["ชื่อสถานศึกษา"] ?? "",
-          จังหวัด: e["จังหวัดสถานศึกษา"] ?? "",
-          GPAX: e["GPAX"] ?? "",
-          "GPA Math": e["รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์"] ?? "",
-          "GPA Science": e["รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์"] ?? "",
-          "GPA English": e["รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ"] ?? "",
-          "GPAX 1": e[`1/${Number(e["year"])}`] || "",
-          "GPAX 2": e[`2/${Number(e["year"])}`] || "",
-          "GPAX 3": e[`1/${Number(e["year"]) + 1}`] || "",
-          "GPAX 4": e[`2/${Number(e["year"]) + 1}`] || "",
-          "GPAX 5": e[`1/${Number(e["year"]) + 2}`] || "",
-          "GPAX 6": e[`2/${Number(e["year"]) + 2}`] || "",
-          "GPAX 7": e[`1/${Number(e["year"]) + 3}`] || "",
-          "GPAX 8": e[`2/${Number(e["year"]) + 3}`] || "",
-          จำนวนหน่วยกิตรวม: "0",
-          สาขาวิชาที่สมัคร: e["สาขาวิชาที่สมัคร"] ?? "",
-          หมายเหตุ: e["หมายเหตุ"],
-        }
-      )
-    }
+    const extendedEligibleWithApplicantToPyaoResult = (
+      e: ExtendedEligibleWithPartialyApplicant
+    ): PyaoResultSpreadsheetRow => {
+      return {
+        รหัสนักศึกษา: e["รหัสนักศึกษา"],
+        "ชื่อ-สกุล": e["ชื่อ - สกุล"],
+        ประเภทการเข้า: e["ประเภทการเข้า"],
+        โรงเรียน: e["ชื่อสถานศึกษา"] ?? "",
+        จังหวัด: e["จังหวัดสถานศึกษา"] ?? "",
+        GPAX: parseNumber(e["GPAX"]) ?? undefined,
+        "GPA Math": parseNumber(e["รายการคะแนนกลุ่มสาระวิชา_คณิตศาสตร์"]) ?? undefined,
+        "GPA Science":
+          parseNumber(e["รายการคะแนนกลุ่มสาระวิชา_วิทยาศาสตร์"]) ?? undefined,
+        "GPA English":
+          parseNumber(e["รายการคะแนนกลุ่มสาระวิชา_ภาษาต่างประเทศ"]) ?? undefined,
+        "GPAX 1": parseNumber(e[`1/${Number(e["year"])}`]) ?? undefined,
+        "GPAX 2": parseNumber(e[`2/${Number(e["year"])}`]) ?? undefined,
+        "GPAX 3": parseNumber(e[`1/${Number(e["year"]) + 1}`]) ?? undefined,
+        "GPAX 4": parseNumber(e[`2/${Number(e["year"]) + 1}`]) ?? undefined,
+        "GPAX 5": parseNumber(e[`1/${Number(e["year"]) + 2}`]) ?? undefined,
+        "GPAX 6": parseNumber(e[`2/${Number(e["year"]) + 2}`]) ?? undefined,
+        "GPAX 7": parseNumber(e[`1/${Number(e["year"]) + 3}`]) ?? undefined,
+        "GPAX 8": parseNumber(e[`2/${Number(e["year"]) + 3}`]) ?? undefined,
+        จำนวนหน่วยกิตรวม: "0",
+        สาขาวิชาที่สมัคร: e["สาขาวิชาที่สมัคร"] ?? "",
+        หมายเหตุ: e["หมายเหตุ"],
+      };
+    };
 
     const workBook = xlsx.utils.book_new();
 
     const applicantByName = new Map<string, ApplicantSpreadsheetRow>();
-    const extendedEligibleWithPartialyApplicantByName = new Map<string, ExtendedEligibleWithPartialyApplicant>();
-    
+    const extendedEligibleWithPartialyApplicantByName = new Map<
+      string,
+      ExtendedEligibleWithPartialyApplicant
+    >();
+
     for (const applicant of applicants) {
-      let name
+      let name;
       // if (applicant["สัญชาติ"] == "ไทย") {
       //   name = applicant["คำนำหน้านาม(ไทย)"] + applicant["ชื่อ(ไทย)"] + " " + applicant["นามสกุล(ไทย)"];
       // } else {
       //   name = applicant["คำนำหน้านาม(อังกฤษ)"] + applicant["ชื่อ(อังกฤษ)"] + " " + applicant["นามสกุล(อังกฤษ)"];
       // }
 
-      const thaiFirstName = applicant["ชื่อ(ไทย)"]
-      const engFirstName = applicant["ชื่อ(อังกฤษ)"]
-      
+      const thaiFirstName = applicant["ชื่อ(ไทย)"];
+      const engFirstName = applicant["ชื่อ(อังกฤษ)"];
+
       if (thaiFirstName !== undefined && thaiFirstName !== "") {
-        name = applicant["คำนำหน้านาม(ไทย)"] + applicant["ชื่อ(ไทย)"] + " " + applicant["นามสกุล(ไทย)"];
+        name =
+          applicant["คำนำหน้านาม(ไทย)"] +
+          applicant["ชื่อ(ไทย)"] +
+          " " +
+          applicant["นามสกุล(ไทย)"];
       } else if (engFirstName !== undefined && engFirstName !== "") {
-        name = applicant["คำนำหน้านาม(อังกฤษ)"] + applicant["ชื่อ(อังกฤษ)"] + " " + applicant["นามสกุล(อังกฤษ)"];
+        name =
+          applicant["คำนำหน้านาม(อังกฤษ)"] +
+          applicant["ชื่อ(อังกฤษ)"] +
+          " " +
+          applicant["นามสกุล(อังกฤษ)"];
       } else {
-        console.log("no name")
-        name = "no name"
+        console.log("no name");
+        name = "no name";
       }
 
-      applicantByName.set(name, applicant)
+      applicantByName.set(name, applicant);
 
       // if(applicant["โอนไปยังระบบทะเบียน"] == "ใช่" && applicant["สถานะการชำระเงินค่ายืนยันสิทธิ์"] == "ชำระเงินแล้ว") {
       //   applicantByName.set(name, applicant)
@@ -206,11 +232,11 @@ const MultipleFileUploader = () => {
     }
 
     for (const eligible of eligibles) {
-      const applicant = applicantByName.get(eligible["ชื่อ - สกุล"])
+      const applicant = applicantByName.get(eligible["ชื่อ - สกุล"]);
       if (!applicant) {
-        const text = `${eligible["ชื่อ - สกุล"]} ${eligible["รหัสนักศึกษา"]} is not merged"`
-        console.log(text)
-        setLogs((prev) => prev + 1)
+        const text = `${eligible["ชื่อ - สกุล"]} ${eligible["รหัสนักศึกษา"]} is not merged"`;
+        console.log(text);
+        setLogs((prev) => prev + 1);
       }
 
       const year = eligible["รหัสนักศึกษา"].substring(0, 2);
@@ -222,31 +248,37 @@ const MultipleFileUploader = () => {
           year,
         },
       };
-  
-      extendedEligibleWithPartialyApplicantByName.set(eligible["ชื่อ - สกุล"], value);
+
+      extendedEligibleWithPartialyApplicantByName.set(
+        eligible["ชื่อ - สกุล"],
+        value
+      );
     }
 
-    const extendedEligibleWithPartialyApplicants = Array.from(extendedEligibleWithPartialyApplicantByName.values());
+    const extendedEligibleWithPartialyApplicants = Array.from(
+      extendedEligibleWithPartialyApplicantByName.values()
+    );
 
-    const filteredArr = extendedEligibleWithPartialyApplicants.filter((o) => o.hasOwnProperty("ประเภทการเข้า"));
+    const filteredArr = extendedEligibleWithPartialyApplicants.filter((o) =>
+      o.hasOwnProperty("ประเภทการเข้า")
+    );
     const regStudents = filteredArr.filter((student) => {
       // return student["สาขาวิชาที่สมัคร"] === "วิศวกรรมคอมพิวเตอร์ - วศ.บ. 4 ปี"
-      return student["รหัสนักศึกษา"].substring(7, 9) === "10"
-    })
-    console.log(extendedEligibleWithPartialyApplicants)
-    console.log(filteredArr)
-    console.log(regStudents)
+      return student["รหัสนักศึกษา"].substring(7, 9) === "10";
+    });
+
     const interStudents = filteredArr.filter((student) => {
       // return student["สาขาวิชาที่สมัคร"] === "วิศวกรรมคอมพิวเตอร์ (หลักสูตรนานาชาติ) - วศ.บ. 4 ปี"
-      return student["รหัสนักศึกษา"].substring(7, 9) === "34"
-    })
-    
+      return student["รหัสนักศึกษา"].substring(7, 9) === "34";
+    });
+
     const reg = regStudents.map(extendedEligibleWithApplicantToPyaoResult);
     const inter = interStudents.map(extendedEligibleWithApplicantToPyaoResult);
-
+    console.log("alll myyy fellasss");
+    console.log(reg);
     const regWorksheet = xlsx.utils.json_to_sheet(reg);
     const interWorksheet = xlsx.utils.json_to_sheet(inter);
-    
+
     xlsx.utils.book_append_sheet(workBook, regWorksheet, "reg");
     xlsx.utils.book_append_sheet(workBook, interWorksheet, "inter");
 
@@ -307,7 +339,8 @@ const MultipleFileUploader = () => {
         <ul className="h-32 overflow-y-auto  scrollbar-thumb-blue-900 scrollbar scrollbar-track-white/10 ">
           {applicantFiles.map((file, i) => (
             <li key={i}>
-              [{(file as any).path}] [{file.type}] {file.name} - {file.size} bytes
+              [{(file as any).path}] [{file.type}] {file.name} - {file.size}{" "}
+              bytes
             </li>
           ))}
         </ul>
@@ -317,47 +350,49 @@ const MultipleFileUploader = () => {
         <ul className="h-32 overflow-y-auto  scrollbar-thumb-blue-900 scrollbar scrollbar-track-white/10">
           {eligibleFiles.map((file, i) => (
             <li key={i}>
-              [{(file as any).path}] [{file.type}] {file.name} - {file.size} bytes
+              [{(file as any).path}] [{file.type}] {file.name} - {file.size}{" "}
+              bytes
             </li>
           ))}
         </ul>
       </div>
-     <div className="flex justify-between">
-     <div>
-     <button
-        className="bg-blue-500 hover:bg-blue-700 text-white  font-mono font-bold py-2 px-4 rounded hover:animate-bounce"
-        type="button"
-        onClick={exportFile}
-      >
-        {"Cut the red wire"}
-      </button>
-      <button
-        className=" hover:bg-red-800 bg-red-500 text-white font-mono font-bold py-2 px-4 rounded hover:animate-bounce"
-        type="button"
-        onClick={exportFile}
-      >
-        {"Cut the blue wire"}
-      </button>
-     </div>
+      <div className="flex justify-between">
+        <div>
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white  font-mono font-bold py-2 px-4 rounded hover:animate-bounce"
+            type="button"
+            onClick={exportFile}
+          >
+            {"Cut the red wire"}
+          </button>
+          <button
+            className=" hover:bg-red-800 bg-red-500 text-white font-mono font-bold py-2 px-4 rounded hover:animate-bounce"
+            type="button"
+            onClick={exportFile}
+          >
+            {"Cut the blue wire"}
+          </button>
+        </div>
 
-      <button
-        className="bg-white hover:bg-gray-400 text-black font-mono font-bold py-2 px-4 rounded hover:animate-bounce"
-        type="button"
-        onClick={() => {
-          setApplicantFiles([]);
-          setEligibleFiles([]);
-          setApplicants([]);
-          setEligibles([]);
-          setLogs(0);
-        }}
-      >
-        {"☕ Detonate (clear all uploaded files)"}
-      </button>
-
-     </div>
-      {logs > 0 && <div className="p-10 font-mono">
-        {`Logs >>> ${logs} (check at the console for more information)`}
-      </div>}
+        <button
+          className="bg-white hover:bg-gray-400 text-black font-mono font-bold py-2 px-4 rounded hover:animate-bounce"
+          type="button"
+          onClick={() => {
+            setApplicantFiles([]);
+            setEligibleFiles([]);
+            setApplicants([]);
+            setEligibles([]);
+            setLogs(0);
+          }}
+        >
+          {"☕ Detonate (clear all uploaded files)"}
+        </button>
+      </div>
+      {logs > 0 && (
+        <div className="p-10 font-mono">
+          {`Logs >>> ${logs} (check at the console for more information)`}
+        </div>
+      )}
     </div>
   );
 };
